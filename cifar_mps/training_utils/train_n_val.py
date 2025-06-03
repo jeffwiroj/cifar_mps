@@ -27,9 +27,8 @@ def evaluate(model, data_loader, criterion):
     return loss_meter.avg, acc_meter.avg
 
 
-def train_n_val(model, optimizer, scheduler, train_loader, val_loader, config):
+def train_n_val(model, optimizer, scheduler, train_loader, val_loader, config,device):
 
-    device = next(iter(model.parameters())).device
     total_iters = len(train_loader) * config.epochs
     eval_every_n_iters = int(total_iters * 0.1)
     current_iter = 0
