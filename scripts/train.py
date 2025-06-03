@@ -11,9 +11,10 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else 
                      "mps" if torch.backends.mps.is_available() else "cpu")
 
-    train_config, exp_config = parse_args()
+    args,train_config, exp_config = parse_args()
 
     if exp_config.verbose:
+        print(args)
         print(train_config)
         print(exp_config)
 

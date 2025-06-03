@@ -35,11 +35,17 @@ def get_dataloaders(config, data_dir="data/"):
 
     train_set, test_set = get_datasets(config, data_dir)
 
+    pin_memory = torch.cuda.is_available()
+
     train_loader = torch.utils.data.DataLoader(
-        train_set, batch_size=config.batch_size, shuffle=False, drop_last=True
+        train_set,
+        batch_size=config.batch_size,
+        shuffle=True,
+        drop_last=True,
+        pin_memory=pin_memory,
     )
     test_loader = torch.utils.data.DataLoader(
-        test_set, batch_size=512, shuffle=False, drop_last=False
+        test_set, batch_size=512, shuffle=False, drop_last=False, pin_memory=pin_memory
     )
 
     return train_loader, test_loader

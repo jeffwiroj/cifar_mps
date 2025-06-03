@@ -261,6 +261,7 @@ dependencies = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "black" },
     { name = "ipykernel" },
     { name = "jupyter-black" },
     { name = "jupyterlab" },
@@ -281,6 +282,7 @@ requires-dist = [
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "black", specifier = ">=25.1.0" },
     { name = "ipykernel", specifier = ">=6.29.5" },
     { name = "jupyter-black", specifier = ">=0.4.0" },
     { name = "jupyterlab", specifier = ">=4.4.3" },
