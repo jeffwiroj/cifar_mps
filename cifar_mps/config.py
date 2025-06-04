@@ -12,17 +12,20 @@ class TrainConfig:
 
     # Training Hyperparameters
     batch_size: int = 512
-    epochs: int = 40
-    max_lr: float = 0.05
-    wd: float = 1e-5
+    epochs: int = 120
+    max_lr: float = 0.04
+    wd: float = 1e-4
     dropout: float = 0.1
+    grad_clip: float = 1.0
 
     # Optimizer Configuration
     optimizer: Literal["sgd", "adamw"] = "sgd"  # Optimizer type
 
     # Learning Rate Scheduling
     scheduler: Literal["none", "cosine", "linear"] = "none"  # LR scheduler type
-    lr_warmup: float = 0.00  # Linear LR warmup as percentage of total iterations (0.0-1.0)
+    lr_warmup: float = (
+        0.00  # Linear LR warmup as percentage of total iterations (0.0-1.0)
+    )
 
     # Data Augmentation
     augmentations: str = "random"  # Type of data augmentations to apply
@@ -69,10 +72,15 @@ def parse_args() -> tuple[TrainConfig, ExpConfig]:
         "--epochs", "-e", type=int, default=40, help="Number of training epochs"
     )
     train_group.add_argument(
-        "--max-lr", "-lr", type=float, default=0.05, help="Maximum learning rate"
+        "--max-lr", "-lr", type=float, default=0.1, help="Maximum learning rate"
     )
     train_group.add_argument("--wd", "-w", type=float, default=1e-4, help="Weight decay")
-    train_group.add_argument("--dropout", "-d", type=float, default=0.1, help="Dropout rate")
+    train_group.add_argument(
+        "--dropout", "-d", type=float, default=0.1, help="Dropout rate"
+    )
+    train_group.add_argument(
+        "--grad-clip", "-g", type=float, default=1.0, help="Grad Norm clip"
+    )
 
     # Optimizer Configuration
     opt_group = parser.add_argument_group("Optimizer Configuration")
@@ -105,7 +113,10 @@ def parse_args() -> tuple[TrainConfig, ExpConfig]:
     # Data Augmentation
     aug_group = parser.add_argument_group("Data Augmentation")
     aug_group.add_argument(
-        "--augmentations", type=str, default="random", help="Type of data augmentations to apply"
+        "--augmentations",
+        type=str,
+        default="random",
+        help="Type of data augmentations to apply",
     )
 
     # Experiment Configuration
@@ -118,14 +129,21 @@ def parse_args() -> tuple[TrainConfig, ExpConfig]:
         help="Name of the experiment for identification",
     )
     exp_group.add_argument(
-        "--weight-folder", type=str, default="", help="Directory to save model weights/checkpoints"
+        "--weight-folder",
+        type=str,
+        default="",
+        help="Directory to save model weights/checkpoints",
     )
     exp_group.add_argument(
         "--use-wandb", action="store_true", help="Enable Weights & Biases logging"
     )
-    exp_group.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output")
     exp_group.add_argument(
-        "--mixed-precision", action="store_true", help="Enable mixed precision (FP16) training"
+        "--verbose", "-v", action="store_true", help="Enable verbose output"
+    )
+    exp_group.add_argument(
+        "--mixed-precision",
+        action="store_true",
+        help="Enable mixed precision (FP16) training",
     )
     args = parser.parse_args()
 
@@ -141,6 +159,7 @@ def parse_args() -> tuple[TrainConfig, ExpConfig]:
         max_lr=args.max_lr,
         wd=args.wd,
         dropout=args.dropout,
+        grad_clip=args.grad_clip,
     )
 
     exp_config = ExpConfig(

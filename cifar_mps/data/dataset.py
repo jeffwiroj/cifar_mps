@@ -45,7 +45,11 @@ def get_dataloaders(config, data_dir="data/"):
         pin_memory=pin_memory,
     )
     test_loader = torch.utils.data.DataLoader(
-        test_set, batch_size=512, shuffle=False, drop_last=False, pin_memory=pin_memory
+        test_set,
+        batch_size=2 * config.batch_size,
+        shuffle=False,
+        drop_last=False,
+        pin_memory=pin_memory,
     )
 
     return train_loader, test_loader

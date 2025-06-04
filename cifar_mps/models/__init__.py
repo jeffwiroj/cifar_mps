@@ -9,7 +9,7 @@ def get_models(model_name: str = "resnet18"):
         model = resnet18(weights=None)
         model.fc = nn.Linear(512, 10)
     elif model_name == "smol_resnet":
-        arch = [(1, 64, 64), (1, 64, 128), (1, 128, 256), (1, 256, 512)]
+        arch = [(1, 64, 64), (1, 64, 128), (1, 128, 256), (1, 256, 256)]
         model = ResNet(arch=arch, num_classes=10)
     else:
         model = resnet18(weights=None)
