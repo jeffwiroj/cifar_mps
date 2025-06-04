@@ -6,12 +6,12 @@ import math
 
 
 class CosineWarmupScheduler:
-    def __init__(self, optimizer, max_lr, max_steps, warmup_ratio=0.03, min_lr_ratio=0.1):
+    def __init__(self, optimizer, max_lr, max_steps, warmup_ratio=0.03, min_lr=1e-6):
         self.optimizer = optimizer
         self.max_lr = max_lr
         self.max_steps = max_steps
         self.warmup_steps = int(max_steps * warmup_ratio)
-        self.min_lr = max_lr * min_lr_ratio
+        self.min_lr = min_lr
         self.current_step = 0
 
         # Set initial learning rate to very small value for warmup

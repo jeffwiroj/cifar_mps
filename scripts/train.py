@@ -41,4 +41,4 @@ if __name__ == "__main__":
     else:
         scheduler = None
     
-    train_n_val(model,optimizer,scheduler,train_loader,test_loader,train_config,device)
+    train_n_val(model,optimizer,scheduler,train_loader,test_loader,train_config,exp_config,device)

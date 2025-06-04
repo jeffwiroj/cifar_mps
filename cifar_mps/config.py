@@ -36,6 +36,7 @@ class ExpConfig:
     weight_folder: str = ""  # Directory to save model weights/checkpoints
     use_wandb: bool = False  # Whether to use Weights & Biases for logging
     verbose: bool = False  # If true, will log/prints more
+    mixed_precision: bool = False  # Whether to use mixed precision (FP16) training
 
 
 def parse_args() -> tuple[TrainConfig, ExpConfig]:
@@ -70,7 +71,7 @@ def parse_args() -> tuple[TrainConfig, ExpConfig]:
     train_group.add_argument(
         "--max-lr", "-lr", type=float, default=0.05, help="Maximum learning rate"
     )
-    train_group.add_argument("--wd", "-w", type=float, default=1e-5, help="Weight decay")
+    train_group.add_argument("--wd", "-w", type=float, default=1e-4, help="Weight decay")
     train_group.add_argument("--dropout", "-d", type=float, default=0.1, help="Dropout rate")
 
     # Optimizer Configuration
@@ -110,7 +111,11 @@ def parse_args() -> tuple[TrainConfig, ExpConfig]:
     # Experiment Configuration
     exp_group = parser.add_argument_group("Experiment Configuration")
     exp_group.add_argument(
-        "--exp-name", "-n", type=str, default="", help="Name of the experiment for identification"
+        "--exp-name",
+        "-n",
+        type=str,
+        default="supervised_cifar",
+        help="Name of the experiment for identification",
     )
     exp_group.add_argument(
         "--weight-folder", type=str, default="", help="Directory to save model weights/checkpoints"
@@ -119,7 +124,9 @@ def parse_args() -> tuple[TrainConfig, ExpConfig]:
         "--use-wandb", action="store_true", help="Enable Weights & Biases logging"
     )
     exp_group.add_argument("--verbose", "-v", action="store_true", help="Enable verbose output")
-
+    exp_group.add_argument(
+        "--mixed-precision", action="store_true", help="Enable mixed precision (FP16) training"
+    )
     args = parser.parse_args()
 
     # Create config objects
@@ -141,5 +148,55 @@ def parse_args() -> tuple[TrainConfig, ExpConfig]:
         weight_folder=args.weight_folder,
         use_wandb=args.use_wandb,
         verbose=args.verbose,
+        mixed_precision=args.mixed_precision,
     )
-    return args,train_config, exp_config
+    return args, train_config, exp_config
+
+
+def get_run_name(train_config: TrainConfig, exp_config: ExpConfig) -> str:
+    """
+    Generate a descriptive run name based on the most important configuration parameters.
+
+    Args:
+        train_config: Training configuration object
+        exp_config: Experiment configuration object
+
+    Returns:
+        str: Formatted run name for experiment tracking
+    """
+
+    base_name = train_config.model_name
+
+    # Format learning rate for readability (remove scientific notation for small values)
+    lr_str = f"{train_config.max_lr:.4f}".rstrip("0").rstrip(".")
+
+    # Format weight decay
+    if train_config.wd >= 1e-3:
+        wd_str = f"{train_config.wd:.4f}".rstrip("0").rstrip(".")
+    else:
+        wd_str = f"{train_config.wd:.0e}".replace("e-0", "e-").replace("e-", "e")
+
+    # Build run name with most important hyperparameters
+    run_name_parts = [
+        base_name,
+        f"bs{train_config.batch_size}",
+        f"lr{lr_str}",
+        f"wd{wd_str}",
+        f"{train_config.optimizer}",
+        f"e{train_config.epochs}",
+    ]
+
+    # Add scheduler if not 'none'
+    if train_config.scheduler != "none":
+        run_name_parts.append(f"sched_{train_config.scheduler}")
+
+    # Add warmup if used
+    if train_config.lr_warmup > 0:
+        warmup_str = f"{train_config.lr_warmup:.2f}".rstrip("0").rstrip(".")
+        run_name_parts.append(f"warmup{warmup_str}")
+
+    # Add dropout if not default
+    if train_config.dropout != 0.1:
+        dropout_str = f"{train_config.dropout:.2f}".rstrip("0").rstrip(".")
+        run_name_parts.append(f"drop{dropout_str}")
+    return "_".join(run_name_parts)

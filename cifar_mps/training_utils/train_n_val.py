@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
-
+import wandb
+from dataclasses import asdict
+from cifar_mps.config import TrainConfig, ExpConfig, get_run_name
+from cifar_mps.training_utils.train_n_val import AverageMeter
 
 def evaluate(model, data_loader, criterion):
     """Evaluate model on a given dataset and return avg loss and accuracy."""
@@ -27,15 +30,37 @@ def evaluate(model, data_loader, criterion):
     return loss_meter.avg, acc_meter.avg
 
 
-def train_n_val(model, optimizer, scheduler, train_loader, val_loader, config, device):
-
-    total_iters = len(train_loader) * config.epochs
-    eval_every_n_iters = int(total_iters * 0.1)
-    current_iter = 0
+def train_n_val(
+    model,
+    optimizer,
+    scheduler,
+    train_loader,
+    val_loader,
+    train_config: TrainConfig,
+    exp_config: ExpConfig,
+    device,
+):
 
     criterion = nn.CrossEntropyLoss()
+    scaler = torch.amp.GradScaler() if exp_config.mixed_precision else None
 
-    for epoch in range(config.epochs):
+    run = None
+    run_name = get_run_name(train_config,exp_config)
+    if exp_config.use_wandb:
+        run = wandb.init(
+            project=exp_config.exp_name,
+            config=asdict(train_config),
+            run_name=run_name
+        )
+
+    total_steps = len(train_loader)*train_config.epochs
+    global_step = 0
+    eval_iterval =  len(train_loader) // 2
+    
+    train_loss_meter = AverageMeter("train_loss")
+    train_acc_meter = AverageMeter("train_acc")
+
+    for epoch in range(train_config.epochs):
         model.train()
         for x, y in train_loader:
             x = x.to(device, non_blocking=True)
@@ -43,19 +68,44 @@ def train_n_val(model, optimizer, scheduler, train_loader, val_loader, config, d
 
             # Forward + Backward + Optimize
             optimizer.zero_grad()
-            outputs = model(x)
-            loss = criterion(outputs, y)
-            loss.backward()
-            optimizer.step()
+
+            # Mixed Precision training
+            if scaler:
+                with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
+                    outputs = model(x)
+                    loss = criterion(outputs, y)
+                scaler.scale(loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                outputs = model(x)
+                loss = criterion(outputs, y)
+                loss.backward()
+                optimizer.step()
             if scheduler:
                 scheduler.step()
 
-        train_loss, train_acc = evaluate(model, train_loader, criterion)
-        test_loss, test_acc = evaluate(model, val_loader, criterion)
-        print(f"Epoch: {epoch + 1}")
-        print(f"Train Loss: {train_loss:.4f} | Train Acc: {train_acc:.4f}")
-        print(f"Val  Loss: {test_loss:.4f} | Val  Acc: {test_acc:.4f}")
+            # Calculate accuracy of batch:
+            # After getting outputs and loss
+            B = x.size(0)
+            pred = outputs.argmax(dim=1)
+            correct = (pred == y).sum().item()
+            accuracy = correct / B * 100  # Convert to percentage
 
+            
+            train_loss_meter.update(loss.item()*B,n=B)
+            train_acc_meter.update(accuracy * B, n=B)
+            if global_step % eval_iterval == 0:
+                val_loss, val_acc = evaluate(model, val_loader, criterion)
+                if run:
+                    run.log(
+                        {
+                            "train_loss": train_loss_meter.avg,
+                            "train_acc": train_acc_meter.avg ,
+                             "val_loss": val_loss,
+                             "val_acc": val_acc
+                        })
+                      
 
 class AverageMeter:
     """Computes and stores the average, current value, sum, and count, with a name."""
