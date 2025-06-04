@@ -53,3 +53,52 @@ def get_dataloaders(config, data_dir="data/"):
     )
 
     return train_loader, test_loader
+
+
+def unnormalize(image, mean, std):
+    """
+    Undo normalization of an image tensor.
+    Args:
+        image (torch.Tensor): The image tensor.
+        mean (tuple): The mean values used for normalization.
+        std (tuple): The std values used for normalization.
+
+    Returns:
+        torch.Tensor: The unnormalized image.
+    """
+    for t, m, s in zip(image, mean, std):
+        t.mul_(s).add_(m)  # Multiply by std and add mean to undo normalization.
+    return image
+
+
+def visualize_images(
+    dataloader, mean=(0.4914, 0.4822, 0.4465), std=(0.2023, 0.1994, 0.2010), num_images=8
+):
+    """
+    Visualizes a batch of images from a given DataLoader.
+    Args:
+        dataloader (torch.utils.data.DataLoader): The DataLoader providing the image batches.
+        mean (tuple): The mean values used for normalization.
+        std (tuple): The std values used for normalization.
+        num_images (int): The number of images to display.
+    """
+    # Get a batch of images
+    images, labels = next(iter(dataloader))
+
+    # Unnormalize the images
+    images = unnormalize(images, mean, std)
+
+    # Convert the image tensor to a NumPy array (for plotting)
+    images = images.numpy().transpose((0, 2, 3, 1))  # Shape (N, C, H, W) -> (N, H, W, C)
+    images = np.clip(images, 0, 1)  # Clip values to be between 0 and 1 for displaying
+
+    # Create a grid of images
+    fig, axes = plt.subplots(1, num_images, figsize=(15, 15))
+
+    for i in range(num_images):
+        ax = axes[i]
+        ax.imshow(images[i])
+        ax.axis("off")  # Hide axes
+        ax.set_title(f"Label: {labels[i].item()}")  # Show the label
+
+    plt.show()

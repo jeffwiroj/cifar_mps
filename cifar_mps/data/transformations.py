@@ -24,6 +24,8 @@ def get_transformation(transformation_type: str) -> v2.Compose:
         "basic": v2.Compose(
             [
                 v2.ToImage(),
+                v2.RandomCrop(32, padding=4, padding_mode="constant"),
+                v2.RandomHorizontalFlip(),
                 v2.ToDtype(torch.float32, scale=True),
                 v2.Normalize(CIFAR_MEAN, CIFAR_STD),
             ]
