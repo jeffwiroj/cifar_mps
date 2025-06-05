@@ -11,12 +11,12 @@ class TrainConfig:
     model_name: str = "smol_resnet"  # Name of the model architecture to use
 
     # Training Hyperparameters
-    batch_size: int = 512
+    batch_size: int = 256
     epochs: int = 120
-    max_lr: float = 0.04
-    wd: float = 1e-4
+    max_lr: float = 0.05
+    wd: float = 5e-4
     dropout: float = 0.1
-    grad_clip: float = 1.0
+    grad_clip: float = 0.5
 
     # Optimizer Configuration
     optimizer: Literal["sgd", "adamw"] = "sgd"  # Optimizer type
@@ -24,11 +24,11 @@ class TrainConfig:
     # Learning Rate Scheduling
     scheduler: Literal["none", "cosine", "linear"] = "none"  # LR scheduler type
     lr_warmup: float = (
-        0.00  # Linear LR warmup as percentage of total iterations (0.0-1.0)
+        0.15  # Linear LR warmup as percentage of total iterations (0.0-1.0)
     )
 
     # Data Augmentation
-    augmentations: str = "random"  # Type of data augmentations to apply
+    augmentations: str = "basic"  # Type of data augmentations to apply
 
 
 @dataclass
@@ -66,20 +66,20 @@ def parse_args() -> tuple[TrainConfig, ExpConfig]:
     # Training Hyperparameters
     train_group = parser.add_argument_group("Training Hyperparameters")
     train_group.add_argument(
-        "--batch-size", "-b", type=int, default=512, help="Batch size for training"
+        "--batch-size", "-b", type=int, default=256, help="Batch size for training"
     )
     train_group.add_argument(
-        "--epochs", "-e", type=int, default=40, help="Number of training epochs"
+        "--epochs", "-e", type=int, default=120, help="Number of training epochs"
     )
     train_group.add_argument(
-        "--max-lr", "-lr", type=float, default=0.1, help="Maximum learning rate"
+        "--max-lr", "-lr", type=float, default=0.05, help="Maximum learning rate"
     )
-    train_group.add_argument("--wd", "-w", type=float, default=1e-4, help="Weight decay")
+    train_group.add_argument("--wd", "-w", type=float, default=5e-4, help="Weight decay")
     train_group.add_argument(
         "--dropout", "-d", type=float, default=0.1, help="Dropout rate"
     )
     train_group.add_argument(
-        "--grad-clip", "-g", type=float, default=1.0, help="Grad Norm clip"
+        "--grad-clip", "-g", type=float, default=0.5, help="Grad Norm clip"
     )
 
     # Optimizer Configuration

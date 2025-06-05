@@ -41,7 +41,7 @@ if __name__ == "__main__":
             lr=train_config.max_lr,
             weight_decay=train_config.wd,
             nesterov=True,
-            momentum=0.9,
+            momentum=0.7,
         )
     else:
         print("Optimizer not in the accepted, defaulting to sgd")
@@ -50,7 +50,6 @@ if __name__ == "__main__":
             params=model.parameters(),
             lr=train_config.max_lr,
             weight_decay=train_config.wd,
-            nesterov=True,
             momentum=0.9,
         )
 

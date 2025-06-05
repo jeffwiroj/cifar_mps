@@ -1,10 +1,6 @@
 import math
 
 
-""" All schedulers here updates at a step level only
-"""
-
-
 class CosineWarmupScheduler:
     def __init__(self, optimizer, max_lr, max_steps, warmup_ratio=0.03, min_lr=1e-6):
         self.optimizer = optimizer
@@ -14,28 +10,24 @@ class CosineWarmupScheduler:
         self.min_lr = min_lr
         self.current_step = 0
 
-        # Set initial learning rate to very small value for warmup
+        # Set initial learning rate to min_lr
         for param_group in self.optimizer.param_groups:
-            param_group["lr"] = (
-                self.max_lr / self.warmup_steps if self.warmup_steps > 0 else self.max_lr
+            param_group["lr"] = self.min_lr
+
+    def get_lr(self, iteration=None):
+        if iteration is None:
+            iteration = self.current_step
+
+        if iteration < self.warmup_steps:
+            # Linear warmup
+            return self.max_lr * (iteration / self.warmup_steps)
+        else:
+            # Cosine annealing
+            cosine_iter = iteration - self.warmup_steps
+            cosine_total = self.max_steps - self.warmup_steps
+            return self.min_lr + (self.max_lr - self.min_lr) * 0.5 * (
+                1 + math.cos(math.pi * cosine_iter / cosine_total)
             )
-
-    def get_lr(self, step=None):
-        if step is None:
-            step = self.current_step
-
-        # 1) Linear warmup
-        if step < self.warmup_steps:
-            return self.max_lr * (step + 1) / self.warmup_steps
-
-        # 2) Past max steps, return min learning rate
-        if step > self.max_steps:
-            return self.min_lr
-
-        # 3) Cosine decay
-        decay_ratio = (step - self.warmup_steps) / (self.max_steps - self.warmup_steps)
-        coeff = 0.5 * (1.0 + math.cos(math.pi * decay_ratio))
-        return self.min_lr + coeff * (self.max_lr - self.min_lr)
 
     def step(self):
         lr = self.get_lr(self.current_step)

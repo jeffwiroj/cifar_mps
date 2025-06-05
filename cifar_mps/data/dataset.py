@@ -2,6 +2,7 @@ import torch
 import torchvision as tv
 from dataclasses import dataclass
 from cifar_mps.data.transformations import get_transformation
+import matplotlib.pyplot as plt
 
 dataset_mean = (0.4914, 0.4822, 0.4465)
 dataset_std = (0.2023, 0.1994, 0.2010)
