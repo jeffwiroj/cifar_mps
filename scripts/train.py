@@ -40,8 +40,7 @@ if __name__ == "__main__":
             params=model.parameters(),
             lr=train_config.max_lr,
             weight_decay=train_config.wd,
-            nesterov=True,
-            momentum=0.7,
+            momentum=0.9,
         )
     else:
         print("Optimizer not in the accepted, defaulting to sgd")
@@ -60,6 +59,16 @@ if __name__ == "__main__":
             total_iters,
             train_config.lr_warmup,
             train_config.max_lr / 100,
+        )
+    elif train_config.scheduler == "onecycle":
+
+        if exp_config.verbose:
+            print(train_config.epochs, len(train_loader))
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(
+            optimizer,
+            max_lr=train_config.max_lr,
+            steps_per_epoch=len(train_loader),
+            epochs=train_config.epochs,
         )
     else:
         scheduler = None

@@ -99,14 +99,14 @@ def parse_args() -> tuple[TrainConfig, ExpConfig]:
         "--scheduler",
         "-s",
         type=str,
-        choices=["none", "cosine", "linear"],
+        choices=["none", "cosine", "linear", "onecycle"],
         default="none",
         help="Learning rate scheduler type",
     )
     sched_group.add_argument(
         "--lr-warmup",
         type=float,
-        default=0.0,
+        default=0.1,
         help="Linear LR warmup as percentage of total iterations (0.0-1.0)",
     )
 

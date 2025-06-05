@@ -26,7 +26,7 @@ def evaluate(model, data_loader, criterion):
 
             loss_meter.update(loss.item(), n=images.size(0))
             acc_meter.update(accuracy, n=images.size(0))
-
+    model.train()
     return loss_meter.avg, acc_meter.avg
 
 
@@ -48,10 +48,9 @@ def train_n_val(
     run_name = get_run_name(train_config, exp_config)
     if exp_config.use_wandb:
         run = wandb.init(
-            project=exp_config.exp_name, config=asdict(train_config), run_name=run_name
+            project=exp_config.exp_name, config=asdict(train_config), name=run_name
         )
 
-    total_steps = len(train_loader) * train_config.epochs
     global_step = 0
     eval_interval = len(train_loader) // 3
 
@@ -60,30 +59,32 @@ def train_n_val(
 
     for epoch in range(train_config.epochs):
         print(f"Epoch: {epoch + 1}")
+
         model.train()
         for x, y in train_loader:
             x = x.to(device, non_blocking=True)
             y = y.to(device, non_blocking=True)
 
-            # Forward + Backward + Optimize
-            optimizer.zero_grad()
-
             # Mixed Precision training
             if scaler:
                 with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
                     outputs = model(x)
+                    optimizer.zero_grad()
                     loss = criterion(outputs, y)
                 scaler.scale(loss).backward()
                 scaler.step(optimizer)
                 scaler.update()
             else:
                 outputs = model(x)
+                optimizer.zero_grad()
                 loss = criterion(outputs, y)
                 loss.backward()
-                nn.utils.clip_grad_value_(model.parameters(), train_config.grad_clip)
+                if train_config.grad_clip > 0:
+                    nn.utils.clip_grad_norm_(model.parameters(), train_config.grad_clip)
                 optimizer.step()
             if scheduler:
                 scheduler.step()
+            # Forward + Backward + Optimize
 
             # Calculate accuracy of batch:
             # After getting outputs and loss
@@ -111,22 +112,21 @@ def train_n_val(
                 print(format_metrics(metrics))
             global_step += 1
 
-        final_train_loss, final_train_acc = evaluate(model, train_loader, criterion)
-        final_val_loss, final_val_acc = evaluate(model, val_loader, criterion)
-        final_lr = optimizer.param_groups[0]["lr"]
+    final_train_loss, final_train_acc = evaluate(model, train_loader, criterion)
+    final_val_loss, final_val_acc = evaluate(model, val_loader, criterion)
+    final_lr = optimizer.param_groups[0]["lr"]
 
-        if run:
-            run.log(
-                {
-                    "final_train_loss": final_train_loss,
-                    "final_train_acc": final_train_acc,
-                    "final_val_loss": final_val_loss,
-                    "final_val_acc": final_val_acc,
-                    "final_learning_rate": final_lr,
-                },
-                step=total_steps,
-            )
-            run.finish()
+    if run:
+        run.log(
+            {
+                "final_train_loss": final_train_loss,
+                "final_train_acc": final_train_acc,
+                "final_val_loss": final_val_loss,
+                "final_val_acc": final_val_acc,
+                "final_learning_rate": final_lr,
+            }
+        )
+        run.finish()
 
 
 class AverageMeter:
