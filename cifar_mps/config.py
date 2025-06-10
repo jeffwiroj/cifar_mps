@@ -79,7 +79,7 @@ def parse_args() -> tuple[TrainConfig, ExpConfig]:
         "--dropout", "-d", type=float, default=0.1, help="Dropout rate"
     )
     train_group.add_argument(
-        "--grad-clip", "-g", type=float, default=0.5, help="Grad Norm clip"
+        "--grad-clip", "-g", type=float, default=1.0, help="Grad Norm clip"
     )
 
     # Optimizer Configuration
