@@ -37,10 +37,9 @@ class ResNet(nn.Module):
 
     def b1(self):
         return nn.Sequential(
-            nn.Conv2d(3, 64, kernel_size=3, stride=2, padding=1),
+            nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1),
             nn.BatchNorm2d(64),
             nn.ReLU(),
-            nn.Conv2d(64, 64, kernel_size=3, stride=1, padding=1),
         )
 
     def block(self, num_residuals, in_ch, out_ch, first_block=False):

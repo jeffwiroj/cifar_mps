@@ -1,5 +1,8 @@
 import torch
 import torch.nn as nn
+import wandb
+from dataclasses import asdict
+from cifar_mps.config import TrainConfig, ExpConfig, get_run_name
 
 
 def evaluate(model, data_loader, criterion):
@@ -19,43 +22,111 @@ def evaluate(model, data_loader, criterion):
 
             _, preds = torch.max(outputs, 1)
             correct = (preds == labels).sum().item()
-            accuracy = correct / images.size(0)
+            accuracy = (correct / images.size(0)) * 100
 
             loss_meter.update(loss.item(), n=images.size(0))
             acc_meter.update(accuracy, n=images.size(0))
-
+    model.train()
     return loss_meter.avg, acc_meter.avg
 
 
-def train_n_val(model, optimizer, scheduler, train_loader, val_loader, config):
-
-    device = next(iter(model.parameters())).device
-    total_iters = len(train_loader) * config.epochs
-    eval_every_n_iters = int(total_iters * 0.1)
-    current_iter = 0
+def train_n_val(
+    model,
+    optimizer,
+    scheduler,
+    train_loader,
+    val_loader,
+    train_config: TrainConfig,
+    exp_config: ExpConfig,
+    device,
+):
 
     criterion = nn.CrossEntropyLoss()
+    scaler = torch.amp.GradScaler() if exp_config.mixed_precision else None
 
-    for epoch in range(config.epochs):
+    run = None
+    run_name = get_run_name(train_config, exp_config)
+    if exp_config.use_wandb:
+        run = wandb.init(
+            project=exp_config.exp_name, config=asdict(train_config), name=run_name
+        )
+
+    global_step = 0
+    eval_interval = len(train_loader) // 3
+
+    train_loss_meter = AverageMeter("train_loss")
+    train_acc_meter = AverageMeter("train_acc")
+
+    for epoch in range(train_config.epochs):
+        print(f"Epoch: {epoch + 1}")
+
         model.train()
         for x, y in train_loader:
-            x = x.to(device)
-            y = y.to(device)
+            x = x.to(device, non_blocking=True)
+            y = y.to(device, non_blocking=True)
 
-            # Forward + Backward + Optimize
-            optimizer.zero_grad()
-            outputs = model(x)
-            loss = criterion(outputs, y)
-            loss.backward()
-            optimizer.step()
+            # Mixed Precision training
+            if scaler:
+                with torch.amp.autocast(device_type="cuda", dtype=torch.float16):
+                    outputs = model(x)
+                    optimizer.zero_grad()
+                    loss = criterion(outputs, y)
+                scaler.scale(loss).backward()
+                scaler.step(optimizer)
+                scaler.update()
+            else:
+                outputs = model(x)
+                optimizer.zero_grad()
+                loss = criterion(outputs, y)
+                loss.backward()
+                if train_config.grad_clip > 0:
+                    nn.utils.clip_grad_norm_(model.parameters(), train_config.grad_clip)
+                optimizer.step()
             if scheduler:
                 scheduler.step()
+            # Forward + Backward + Optimize
 
-        train_loss, train_acc = evaluate(model, train_loader, criterion)
-        test_loss, test_acc = evaluate(model, val_loader, criterion)
-        print(f"Epoch: {epoch + 1}")
-        print(f"Train Loss: {train_loss:.4f} | Train Acc: {train_acc:.4f}")
-        print(f"Val  Loss: {test_loss:.4f} | Val  Acc: {test_acc:.4f}")
+            # Calculate accuracy of batch:
+            # After getting outputs and loss
+            B = x.size(0)
+            pred = outputs.argmax(dim=1)
+            correct = (pred == y).sum().item()
+            accuracy = correct / B * 100  # Convert to percentage
+
+            train_loss_meter.update(loss.item(), n=B)
+            train_acc_meter.update(accuracy, n=B)
+
+            if global_step % eval_interval == 0:
+                current_lr = optimizer.param_groups[0]["lr"]
+                val_loss, val_acc = evaluate(model, val_loader, criterion)
+                metrics = {
+                    "train_loss": train_loss_meter.avg,
+                    "train_acc": train_acc_meter.avg,
+                    "val_loss": val_loss,
+                    "val_acc": val_acc,
+                    "lr": current_lr,
+                }
+
+                if run:
+                    run.log(metrics)
+                print(format_metrics(metrics))
+            global_step += 1
+
+    final_train_loss, final_train_acc = evaluate(model, train_loader, criterion)
+    final_val_loss, final_val_acc = evaluate(model, val_loader, criterion)
+    final_lr = optimizer.param_groups[0]["lr"]
+
+    if run:
+        run.log(
+            {
+                "final_train_loss": final_train_loss,
+                "final_train_acc": final_train_acc,
+                "final_val_loss": final_val_loss,
+                "final_val_acc": final_val_acc,
+                "final_learning_rate": final_lr,
+            }
+        )
+        run.finish()
 
 
 class AverageMeter:
@@ -92,3 +163,7 @@ class AverageMeter:
     def summary(self):
         """Prints a formatted summary."""
         print(f"[{self.name}] Final Average: {self.avg:.4f} over {self.count} samples")
+
+
+def format_metrics(metrics: dict) -> str:
+    return ", ".join(f"{k}={v:.4f}" for k, v in metrics.items())
