@@ -4,15 +4,14 @@
 
 ```
 root_dir/
-├── src/ 
-    ├── cifar_mps/   # Supervised Learning package
-├── scripts/     # Scripts to run experiments or utilities
+├── cifar_mps/   # Main Package
+├── examples/     # Scripts to run experiments or utilities
 ```
 
 ## Overview
 
 This project implements CIFAR image classification. Currently supports training resnet18 and smol_resnet.
-TODO: Will be adding fix-match, Sim-Siam, for semi/self supervised things. 
+TODO: Adding in SimSiam, VicReg, and possibly mixmatch
 
 ## Installation
 
@@ -27,9 +26,9 @@ uv sync
 ## Usage
 
 ### Training Supervised Experiments
-See train.py args to see what you can configure.
+See train.py args to see what you can configure. To use wandb, turn on --use-wandb, make sure you save your api key somewhere handy, it will be prompted during the initial run.
 ```bash
-uv run scripts/train.py --model resnet18 
+uv run examples/train.py --model resnet18 
 ```
 
 
