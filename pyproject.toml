@@ -26,8 +26,7 @@ line-length = 99
 target-version = ['py312']
 
 [dependency-groups]
-dev = [
-    "black>=25.1.0",
-    "ipykernel>=6.29.5",
-    "jupyter-black>=0.4.0",
-]
+dev = ["black>=25.1.0", "ipykernel>=6.29.5", "jupyter-black>=0.4.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["cifar_mps"]
