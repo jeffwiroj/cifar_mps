@@ -6,12 +6,14 @@ from torch.nn import functional as F
 class Residual(nn.Module):
     """The Residual block of ResNet models."""
 
-    def __init__(self, in_ch, out_ch, use_1x1conv=False, strides=1):
+    def __init__(self, in_ch, out_ch, use_1x1conv=False, strides=1, dropout=0.0):
         super().__init__()
         self.conv1 = nn.Conv2d(in_ch, out_ch, kernel_size=3, padding=1, stride=strides)
         self.bn1 = nn.BatchNorm2d(out_ch)
         self.conv2 = nn.Conv2d(out_ch, out_ch, kernel_size=3, padding=1)
         self.bn2 = nn.BatchNorm2d(out_ch)
+        self.dropout = nn.Dropout2d(dropout) if dropout > 0 else nn.Identity()
+
         if use_1x1conv:
             self.conv3 = nn.Conv2d(in_ch, out_ch, kernel_size=1, stride=strides)
         else:
@@ -20,6 +22,7 @@ class Residual(nn.Module):
     def forward(self, X):
         Y = F.relu(self.bn1(self.conv1(X)))
         Y = self.bn2(self.conv2(Y))
+        Y = self.dropout(Y)
         if self.conv3:
             X = self.conv3(X)
         Y += X
@@ -27,8 +30,9 @@ class Residual(nn.Module):
 
 
 class ResNet(nn.Module):
-    def __init__(self, arch, num_classes=10):
+    def __init__(self, arch, num_classes=10, dropout=0.0):
         super().__init__()
+        self.dropout = dropout
         self.net = nn.Sequential(self.b1())
         for i, b in enumerate(arch):
             self.net.add_module(f"b{i+2}", self.block(*b, first_block=(i == 0)))
@@ -46,9 +50,13 @@ class ResNet(nn.Module):
         blk = []
         for i in range(num_residuals):
             if i == 0 and not first_block:
-                blk.append(Residual(in_ch, out_ch, use_1x1conv=True, strides=2))
+                blk.append(
+                    Residual(
+                        in_ch, out_ch, use_1x1conv=True, strides=2, dropout=self.dropout
+                    )
+                )
             else:
-                blk.append(Residual(out_ch, out_ch))
+                blk.append(Residual(out_ch, out_ch, dropout=self.dropout))
         return nn.Sequential(*blk)
 
     def forward(self, x):
