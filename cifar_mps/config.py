@@ -69,17 +69,17 @@ def parse_args() -> tuple[TrainConfig, ExpConfig]:
         "--batch-size", "-b", type=int, default=256, help="Batch size for training"
     )
     train_group.add_argument(
-        "--epochs", "-e", type=int, default=120, help="Number of training epochs"
+        "--epochs", "-e", type=int, default=12, help="Number of training epochs"
     )
     train_group.add_argument(
         "--max-lr", "-lr", type=float, default=0.05, help="Maximum learning rate"
     )
-    train_group.add_argument("--wd", "-w", type=float, default=5e-4, help="Weight decay")
+    train_group.add_argument("--wd", "-w", type=float, default=1e-5, help="Weight decay")
     train_group.add_argument(
-        "--dropout", "-d", type=float, default=0.1, help="Dropout rate"
+        "--dropout", "-d", type=float, default=0.0, help="Dropout rate"
     )
     train_group.add_argument(
-        "--grad-clip", "-g", type=float, default=0.5, help="Grad Norm clip"
+        "--grad-clip", "-g", type=float, default=0.0, help="Grad Norm clip"
     )
 
     # Optimizer Configuration

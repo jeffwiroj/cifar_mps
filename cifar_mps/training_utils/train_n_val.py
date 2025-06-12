@@ -51,13 +51,10 @@ def train_n_val(
             project=exp_config.exp_name, config=asdict(train_config), name=run_name
         )
 
-    global_step = 0
-    eval_interval = len(train_loader) // 3
-
-    train_loss_meter = AverageMeter("train_loss")
-    train_acc_meter = AverageMeter("train_acc")
-
     for epoch in range(train_config.epochs):
+        train_loss_meter = AverageMeter("train_loss")
+        train_acc_meter = AverageMeter("train_acc")
+       
         print(f"Epoch: {epoch + 1}")
 
         model.train()
@@ -84,10 +81,7 @@ def train_n_val(
                 optimizer.step()
             if scheduler:
                 scheduler.step()
-            # Forward + Backward + Optimize
-
-            # Calculate accuracy of batch:
-            # After getting outputs and loss
+          
             B = x.size(0)
             pred = outputs.argmax(dim=1)
             correct = (pred == y).sum().item()
@@ -95,37 +89,33 @@ def train_n_val(
 
             train_loss_meter.update(loss.item(), n=B)
             train_acc_meter.update(accuracy, n=B)
-
-            if global_step % eval_interval == 0:
-                current_lr = optimizer.param_groups[0]["lr"]
-                val_loss, val_acc = evaluate(model, val_loader, criterion)
-                metrics = {
-                    "train_loss": train_loss_meter.avg,
-                    "train_acc": train_acc_meter.avg,
-                    "val_loss": val_loss,
-                    "val_acc": val_acc,
-                    "lr": current_lr,
-                }
-
-                if run:
-                    run.log(metrics)
-                print(format_metrics(metrics))
-            global_step += 1
-
-    final_train_loss, final_train_acc = evaluate(model, train_loader, criterion)
-    final_val_loss, final_val_acc = evaluate(model, val_loader, criterion)
-    final_lr = optimizer.param_groups[0]["lr"]
-
-    if run:
-        run.log(
-            {
-                "final_train_loss": final_train_loss,
-                "final_train_acc": final_train_acc,
-                "final_val_loss": final_val_loss,
-                "final_val_acc": final_val_acc,
-                "final_learning_rate": final_lr,
+           
+            
+            current_lr = optimizer.param_groups[0]["lr"]
+            
+            batch_metrics = {
+                'batch_loss': train_loss_meter.avg,
+                'lr':current_lr
             }
-        )
+            if run:
+                run.log(batch_metrics)
+
+
+        train_loss,train_acc = evaluate(model, train_loader, criterion)
+        val_loss, val_acc = evaluate(model, val_loader, criterion)
+        epoch_metrics = {
+            "train_loss": train_loss,
+            "train_acc": train_acc,
+            "val_loss": val_loss,
+            "val_acc": val_acc,
+        }
+
+        if run:
+            run.log(epoch_metrics)
+
+        print(format_metrics(epoch_metrics), f"lr: {current_lr}")
+            
+    if run:
         run.finish()
 
 

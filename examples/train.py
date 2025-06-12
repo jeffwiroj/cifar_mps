@@ -19,6 +19,7 @@ if __name__ == "__main__":
     if exp_config.verbose:
         print(train_config)
         print(exp_config)
+        print(f"Device: {device}")
 
     # Get data
     train_loader, test_loader = get_dataloaders(train_config)
@@ -63,7 +64,7 @@ if __name__ == "__main__":
     elif train_config.scheduler == "onecycle":
 
         if exp_config.verbose:
-            print(train_config.epochs, len(train_loader))
+            print(f"Num epochs: {train_config.epochs}, len train loader: {len(train_loader)}")
         scheduler = torch.optim.lr_scheduler.OneCycleLR(
             optimizer,
             max_lr=train_config.max_lr,
